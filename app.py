@@ -54,19 +54,19 @@ def nutritional():
         )
 
 
-@app.route("/api/topE")
-def top_5():
-    if request.headers.get('Authorization') is None:  # or check_exists(request.headers.get('Authorization')):
-        abort(403)
-    else:
-        with sqlite3.connect("log.db") as conn:
-            val = pd.read_sql(
-                "select * from data_subset ds join products_v4 p on ds.ean = p.ean where ds.user_id=='old'", conn)
-            e_count = val[[col for col in val.columns if col.startswith('E')]].sum(axis=0)
-            return jsonify(e_count.sort_values(ascending=False).iloc[:5].to_dict())
+# @app.route("/api/topE")
+# def top_5():
+#     if request.headers.get('Authorization') is None:  # or check_exists(request.headers.get('Authorization')):
+#         abort(403)
+#     else:
+#         with sqlite3.connect("log.db") as conn:
+#             val = pd.read_sql(
+#                 "select * from data_subset ds join products_v4 p on ds.ean = p.ean where ds.user_id=='old'", conn)
+#             e_count = val[[col for col in val.columns if col.startswith('E')]].sum(axis=0)
+#             return jsonify(e_count.sort_values(ascending=False).iloc[:5].to_dict())
 
 
-@app.route("/api/stats")
+@app.route("/api/statistics")
 def stats():
     if request.headers.get('Authorization') is None:  # or check_exists(request.headers.get('Authorization')):
         abort(403)
@@ -89,14 +89,15 @@ def stats():
                     row[0] + "'", conn)
                 e_count = val[[col for col in val.columns if col.startswith('E')]].sum(axis=0)
                 res_e = e_count.sort_values(ascending=False).iloc[:5].to_dict()
+                # print(res_e)
 
                 arr_e = []
                 for k, v in res_e.items():
-                    cursor = conn.cursor()
-                    cursor.execute(
+                    cursor2 = conn.cursor()
+                    cursor2.execute(
                         "select name, description, e, danger_level, side_effects from es where es.e=='" + k + "'")
-                    rows = cursor.fetchone()
-                    vals = dict(zip([key[0] for key in cursor.description], rows))
+                    rows = cursor2.fetchone()
+                    vals = dict(zip([key[0] for key in cursor2.description], rows))
                     vals.update({"count": v})
                     arr_e.append(vals.copy())
                 # bju count
@@ -106,23 +107,25 @@ def stats():
         return jsonify(arr)
 
 
-# @app.route("/api/products")
-# def products():
-#     if request.headers.get('Authorization') is None: # or check_exists(request.headers.get('Authorization')):
-#         abort(403)
-#     else:
-#         req_body = request.get_json()
-#         with sqlite3.connect("log.db") as conn:
-#             cursor = conn.cursor()
-#             cursor.execute(
-#                 "select p.pictureUrl as 'picture_url',"
-#                 " marketingName_finnish as 'name_fin',"
-#                 " marketingName_english as 'name_eng' "
-#                 "from data_subset inner join products_v4 p "
-#                 "on data_subset.ean = p.ean where data_subset.TransactionDate = '8'")
-#             d = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor.fetchall()]
-#             conn.commit()
-#         return jsonify(d)
+@app.route("/api/products", methods=['POST'])
+def products():
+    if request.headers.get('Authorization') is None: # or check_exists(request.headers.get('Authorization')):
+        abort(403)
+    else:
+        req_body = request.get_json()
+        print(req_body['name'])
+        print(req_body['month'])
+        with sqlite3.connect("log.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "select p.pictureUrl as 'picture_url',"
+                " marketingName_finnish as 'name_fin',"
+                " marketingName_english as 'name_eng' "
+                "from data_subset inner join products_v4 p "
+                "on data_subset.ean = p.ean where " + req_body['name'] + " and TransactionDate = '"+req_body['month']+"'")
+            d = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor.fetchall()]
+            conn.commit()
+        return jsonify(d)
 
 
 if __name__ == '__main__':
