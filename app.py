@@ -144,6 +144,30 @@ def products():
             conn.commit()
         return jsonify(d)
 
+@app.route("/api/products/random", methods=['POST'])
+def productsrand():
+    if request.headers.get('Authorization') is None:  # or check_exists(request.headers.get('Authorization')):
+        abort(403)
+    else:
+        age = get_age_by_token(request.headers.get('Authorization'))
+        req_body = request.get_json()
+        print(req_body['month'])
+        print(age)
+        with sqlite3.connect("log.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "select p.pictureUrl as 'picture_url',"
+                " marketingName_finnish as 'name_fin',"
+                " ingredients_finnish as 'ing_fin',"
+                " ingredients_english as 'ing_eng',"
+                " p.ean as 'ean',"
+                " marketingName_english as 'name_eng' "
+                "from data_subset inner join products_v4 p "
+                "on data_subset.ean = p.ean where data_subset.user_id= '" + age + "' and TransactionDate = '" + req_body['month'] + "'")
+            d = [dict(zip([key[0] for key in cursor.description], row)) for row in cursor.fetchall()]
+            conn.commit()
+        return jsonify(d)
+
 
 @app.route("/api/label", methods=['POST'])
 def label():
